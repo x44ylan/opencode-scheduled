@@ -1,54 +1,35 @@
 /** @jsxImportSource @opentui/solid */
-import type { TuiPlugin, TuiPluginModule } from "@opencode-ai/plugin/tui";
+import { Plugin } from "@opencode/plugin/tui";
+import type { Context } from "@opencode/plugin/tui/context";
 import { PLUGIN_ID, SCHEDULE_COMMAND_OPEN } from "./constants.ts";
 import { startScheduler } from "./scheduler.ts";
+import { saveDraftPrompt } from "./store.ts";
 import { openManager, openScheduler } from "./tui/dialogs.tsx";
 import { SidebarScheduledPrompts } from "./tui/SidebarScheduledPrompts.tsx";
 
-const tui: TuiPlugin = async (api) => {
-  const disposeCommands = api.command
-    ? api.command.register(() => [
-        {
-          title: "Schedule Prompt",
-          value: SCHEDULE_COMMAND_OPEN,
-          category: "Plugin",
-          slash: { name: "schedule" },
-          onSelect: () => {
-            void openScheduler(api);
-          },
-        },
-      ])
-    : api.keymap.registerLayer({
-        commands: [
-          {
-            namespace: "palette",
-            name: SCHEDULE_COMMAND_OPEN,
-            title: "Schedule Prompt",
-            category: "Plugin",
-            run: () => {
-              void openScheduler(api);
-            },
-          },
-        ],
-      });
-
-  api.slots.register({
-    order: 180,
-    slots: {
-      sidebar_content(_ctx, props) {
-        return <SidebarScheduledPrompts api={api} sessionID={props.session_id} onOpenManager={() => void openManager(api)} />;
+function Commands(props: { api: Context }) {
+  props.api.keymap.layer(() => ({
+    mode: "global",
+    commands: [{
+      id: SCHEDULE_COMMAND_OPEN, title: "Schedule Prompt", group: "Plugin", palette: true,
+      slash: { name: "schedule", arguments: true },
+      run: async (input) => {
+        if (input?.trim()) await saveDraftPrompt(input);
+        await openScheduler(props.api);
       },
-    },
-  });
+    }],
+  }));
+  return null;
+}
 
-  const disposeScheduler = startScheduler(api);
-  api.lifecycle.onDispose(disposeCommands);
-  api.lifecycle.onDispose(disposeScheduler);
-};
-
-const module: TuiPluginModule & { id: string } = {
+export default Plugin.define({
   id: PLUGIN_ID,
-  tui,
-};
-
-export default module;
+  setup(api) {
+    const commands = api.ui.slot({ append: "app", render: () => <Commands api={api} /> });
+    const sidebar = api.ui.slot({ append: "sidebar.content", render: (props) => (
+      <SidebarScheduledPrompts api={api} sessionID={props.sessionID} onOpenManager={() => void openManager(api)} />
+    ) });
+    const scheduler = startScheduler(api);
+    return () => { scheduler(); sidebar(); commands(); };
+  },
+});

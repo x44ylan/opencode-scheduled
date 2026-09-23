@@ -1,7 +1,7 @@
 /** @jsxImportSource @opentui/solid */
 import { TextAttributes, type KeyEvent, type MouseEvent, type Renderable } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/solid";
-import type { TuiPluginApi } from "@opencode-ai/plugin/tui";
+import type { Context as TuiPluginApi } from "@opencode/plugin/tui/context";
 import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
 import { SCHEDULE_COMMAND_OPEN } from "../constants.ts";
 import { formatCompactDate, taskID } from "../format.ts";
@@ -19,7 +19,7 @@ export interface SchedulerManagerDialogProps {
 }
 
 export function SchedulerManagerDialog(props: SchedulerManagerDialogProps) {
-  const theme = props.api.theme.current;
+  const theme = props.api.theme;
   const dimensions = useTerminalDimensions();
   const [jobs, setJobs] = createSignal(props.initialJobs);
   const [paused, setPaused] = createSignal(props.initialPaused);
@@ -77,7 +77,7 @@ export function SchedulerManagerDialog(props: SchedulerManagerDialogProps) {
   }, 25);
 
   createEffect(() => {
-    props.api.ui.dialog.setSize(dimensions().width >= 120 ? "large" : "medium");
+    props.api.ui.dialog.set({ size: dimensions().width >= 120 ? "large" : "medium" });
   });
 
   const handleKeyDown = (event: KeyEvent) => {
@@ -155,58 +155,7 @@ export function SchedulerManagerDialog(props: SchedulerManagerDialogProps) {
     }
   };
 
-  const disposeKeybinds = props.api.keymap.registerLayer({
-    priority: 10,
-    commands: [
-      {
-        name: "dialog.select.prev",
-        title: "Previous scheduled prompt",
-        category: "Dialog",
-        run: () => moveSelection(-1),
-      },
-      {
-        name: "dialog.select.next",
-        title: "Next scheduled prompt",
-        category: "Dialog",
-        run: () => moveSelection(1),
-      },
-      {
-        name: "dialog.select.submit",
-        title: "Cancel scheduled prompt",
-        category: "Dialog",
-        run: cancelSelected,
-      },
-      {
-        name: `${SCHEDULE_COMMAND_OPEN}.add`,
-        title: "Add scheduled prompt",
-        category: "Dialog",
-        run: addPrompt,
-      },
-      {
-        name: `${SCHEDULE_COMMAND_OPEN}.pause`,
-        title: "Pause scheduled prompts",
-        category: "Dialog",
-        run: toggleDialogPause,
-      },
-      {
-        name: `${SCHEDULE_COMMAND_OPEN}.delete`,
-        title: "Cancel scheduled prompt",
-        category: "Dialog",
-        run: cancelSelected,
-      },
-    ],
-    bindings: [
-      ...props.api.tuiConfig.keybinds.gather("dialog.select", [
-        "dialog.select.prev",
-        "dialog.select.next",
-        "dialog.select.submit",
-      ]),
-      { key: "a", cmd: `${SCHEDULE_COMMAND_OPEN}.add`, desc: "Add scheduled prompt" },
-      { key: "p", cmd: `${SCHEDULE_COMMAND_OPEN}.pause`, desc: "Pause scheduled prompts" },
-      { key: "ctrl+d", cmd: `${SCHEDULE_COMMAND_OPEN}.delete`, desc: "Cancel scheduled prompt" },
-    ],
-  });
-  onCleanup(disposeKeybinds);
+  // The dialog's focused keyboard handler owns selection and action keys.
 
   useKeyboard(handleKeyDown);
 
@@ -215,14 +164,14 @@ export function SchedulerManagerDialog(props: SchedulerManagerDialogProps) {
       <box paddingLeft={4} paddingRight={4} paddingBottom={1} flexDirection="column" gap={1}>
         <box flexDirection="row" justifyContent="space-between">
           <box flexDirection="column" gap={0}>
-            <text fg={theme.text} attributes={TextAttributes.BOLD}>
+            <text fg={theme.text.base} attributes={TextAttributes.BOLD}>
               Scheduled Prompts
             </text>
-            <text fg={theme.textMuted}>enter cancel · a add · p {paused() ? "resume" : "pause"}</text>
+            <text fg={theme.text.muted}>enter cancel · a add · p {paused() ? "resume" : "pause"}</text>
           </box>
           <box flexDirection="row" gap={2}>
             <text
-              fg={hoveredAction() === "add" ? theme.text : theme.primary}
+              fg={hoveredAction() === "add" ? theme.text.base : theme.text.action.primary.base}
               onMouseOver={() => setHoveredAction("add")}
               onMouseOut={() => setHoveredAction(undefined)}
               onMouseUp={(event: MouseEvent) => {
@@ -234,7 +183,7 @@ export function SchedulerManagerDialog(props: SchedulerManagerDialogProps) {
               add
             </text>
             <text
-              fg={hoveredAction() === "pause" ? theme.text : paused() ? theme.success : theme.warning}
+              fg={hoveredAction() === "pause" ? theme.text.base : paused() ? theme.text.feedback.success.base : theme.text.feedback.warning.base}
               onMouseOver={() => setHoveredAction("pause")}
               onMouseOut={() => setHoveredAction(undefined)}
               onMouseUp={(event: MouseEvent) => {
@@ -246,7 +195,7 @@ export function SchedulerManagerDialog(props: SchedulerManagerDialogProps) {
               {paused() ? "resume" : "pause"}
             </text>
             <text
-              fg={hoveredAction() === "esc" ? theme.text : theme.textMuted}
+              fg={hoveredAction() === "esc" ? theme.text.base : theme.text.muted}
               onMouseOver={() => setHoveredAction("esc")}
               onMouseOut={() => setHoveredAction(undefined)}
               onMouseUp={() => props.api.ui.dialog.clear()}
@@ -257,7 +206,7 @@ export function SchedulerManagerDialog(props: SchedulerManagerDialogProps) {
         </box>
 
         <Show when={busy()}>
-          <text fg={theme.warning}>Working...</text>
+          <text fg={theme.text.feedback.warning.base}>Working...</text>
         </Show>
       </box>
 
@@ -266,7 +215,7 @@ export function SchedulerManagerDialog(props: SchedulerManagerDialogProps) {
           when={jobs().length > 0}
           fallback={
             <box width="100%" paddingTop={2} paddingBottom={2} flexDirection="row" justifyContent="center">
-              <text fg={theme.textMuted}>No scheduled prompts</text>
+              <text fg={theme.text.muted}>No scheduled prompts</text>
             </box>
           }
         >
@@ -274,7 +223,7 @@ export function SchedulerManagerDialog(props: SchedulerManagerDialogProps) {
             <For each={jobs()}>
               {(job, index) => {
                 const isSelected = () => index() === selectedIndex();
-                const cardBackground = () => (isSelected() ? theme.backgroundElement : theme.backgroundPanel);
+                const cardBackground = () => (isSelected() ? theme.background.raised.base : theme.background.base);
                 return (
                   <box
                     paddingLeft={0}
@@ -296,7 +245,7 @@ export function SchedulerManagerDialog(props: SchedulerManagerDialogProps) {
                       }
                     }}
                   >
-                    <box width={1} backgroundColor={isSelected() ? theme.primary : theme.borderSubtle} />
+                    <box width={1} backgroundColor={isSelected() ? theme.text.action.primary.base : theme.border.base} />
                     <box
                       paddingLeft={2}
                       paddingRight={2}
@@ -308,11 +257,11 @@ export function SchedulerManagerDialog(props: SchedulerManagerDialogProps) {
                       flexGrow={1}
                       backgroundColor={cardBackground()}
                     >
-                      <text fg={isSelected() ? theme.text : theme.textMuted}>{taskID(job)}</text>
+                      <text fg={isSelected() ? theme.text.base : theme.text.muted}>{taskID(job)}</text>
                       <box flexDirection="row" gap={2}>
-                        <text fg={isSelected() ? theme.text : theme.textMuted}>{formatCompactDate(job.runAt)}</text>
+                        <text fg={isSelected() ? theme.text.base : theme.text.muted}>{formatCompactDate(job.runAt)}</text>
                         <text
-                          fg={hoveredAction() === `delete:${job.id}` ? theme.text : theme.textMuted}
+                          fg={hoveredAction() === `delete:${job.id}` ? theme.text.base : theme.text.muted}
                           onMouseOver={() => setHoveredAction(`delete:${job.id}`)}
                           onMouseOut={() => setHoveredAction(undefined)}
                           onMouseUp={(event: MouseEvent) => {

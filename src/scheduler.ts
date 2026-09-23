@@ -1,4 +1,4 @@
-import type { TuiPluginApi } from "@opencode-ai/plugin/tui";
+import type { Context as TuiPluginApi } from "@opencode/plugin/tui/context";
 import { emitSchedulerChange, onSchedulerChange } from "./scheduler-events.ts";
 import { createScheduledPrompt, readStore, updateStore } from "./store.ts";
 import { formatRunAt } from "./time.ts";
@@ -14,12 +14,8 @@ export interface ScheduleDialogState {
 }
 
 export function currentSessionID(api: TuiPluginApi): string | undefined {
-  if (api.route.current.name !== "session") {
-    return undefined;
-  }
-
-  const sessionID = api.route.current.params?.sessionID;
-  return typeof sessionID === "string" ? sessionID : undefined;
+  const route = api.ui.router.current();
+  return route.type === "session" ? route.sessionID : undefined;
 }
 
 export function sortPending(left: ScheduledPrompt, right: ScheduledPrompt): number {
@@ -37,7 +33,7 @@ export async function loadSchedulerState(): Promise<ScheduleDialogState> {
 export async function addScheduledPrompt(api: TuiPluginApi, prompt: string, runAt: number): Promise<void> {
   const sessionID = currentSessionID(api);
   if (!sessionID) {
-    api.ui.toast({ message: "Open a session before scheduling a prompt", variant: "error", duration: 3000 });
+    api.ui.toast.show({ message: "Open a session before scheduling a prompt", variant: "error", duration: 3000 });
     return;
   }
 
@@ -47,7 +43,7 @@ export async function addScheduledPrompt(api: TuiPluginApi, prompt: string, runA
     jobs: [job, ...store.jobs],
   }));
   emitSchedulerChange();
-  api.ui.toast({ message: `Scheduled for ${formatRunAt(runAt)}`, variant: "success", duration: 3000 });
+  api.ui.toast.show({ message: `Scheduled for ${formatRunAt(runAt)}`, variant: "success", duration: 3000 });
 }
 
 export async function toggleSchedulerPause(api: TuiPluginApi): Promise<boolean> {
@@ -58,7 +54,7 @@ export async function toggleSchedulerPause(api: TuiPluginApi): Promise<boolean> 
     },
   }));
 
-  api.ui.toast({
+  api.ui.toast.show({
     message: store.settings.paused ? "Scheduler paused" : "Scheduler resumed",
     variant: store.settings.paused ? "warning" : "success",
     duration: 2500,
@@ -82,7 +78,7 @@ export async function cancelScheduledPrompt(api: TuiPluginApi, job: ScheduledPro
     ),
   }));
   emitSchedulerChange();
-  api.ui.toast({ message: "Scheduled prompt canceled", variant: "success", duration: 2500 });
+  api.ui.toast.show({ message: "Scheduled prompt canceled", variant: "success", duration: 2500 });
 }
 
 async function deliverJob(api: TuiPluginApi, job: ScheduledPrompt): Promise<void> {
@@ -91,14 +87,11 @@ async function deliverJob(api: TuiPluginApi, job: ScheduledPrompt): Promise<void
     throw new Error("No session available for schedule");
   }
 
-  const result = await api.client.session.promptAsync({
+  await api.client.session.prompt({
     sessionID,
-    parts: [{ type: "text", text: job.prompt }],
+    text: job.prompt,
+    delivery: "queue",
   });
-
-  if (result.error) {
-    throw new Error("Failed to send schedule");
-  }
 }
 
 export async function deliverDuePrompts(api: TuiPluginApi): Promise<void> {
@@ -127,7 +120,7 @@ export async function deliverDuePrompts(api: TuiPluginApi): Promise<void> {
         ),
       }));
       emitSchedulerChange();
-      api.ui.toast({ message: "Scheduled prompt sent", variant: "success", duration: 2500 });
+      api.ui.toast.show({ message: "Scheduled prompt sent", variant: "success", duration: 2500 });
       void api.attention.notify({ message: "Scheduled prompt sent", sound: { name: "done", when: "blurred" }, notification: { when: "blurred" } });
     } catch (error) {
       await updateStore((current) => ({
@@ -144,7 +137,7 @@ export async function deliverDuePrompts(api: TuiPluginApi): Promise<void> {
         ),
       }));
       emitSchedulerChange();
-      api.ui.toast({ message: "Scheduled prompt failed", variant: "error", duration: 3000 });
+      api.ui.toast.show({ message: "Scheduled prompt failed", variant: "error", duration: 3000 });
     }
   }
 }

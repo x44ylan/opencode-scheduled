@@ -4,6 +4,9 @@ Schedule prompts from inside OpenCode with `/schedule`.
 
 Agents can also schedule one non-recurring follow-up in their current session when the user explicitly requests it.
 
+> [!IMPORTANT]
+> Version 1.x supports OpenCode v2 only. OpenCode v1 is no longer supported; use the final 0.x release if you must remain on v1.
+
 ## Install
 
 Recommended:
@@ -14,27 +17,18 @@ opencode plugin -g opencode-scheduled
 
 Manual install:
 
-For a global manual install, add the plugin to both `~/.config/opencode/opencode.json` and `~/.config/opencode/tui.json`.
+For a global manual install, add the plugin to `~/.config/opencode/opencode.json`.
 
 `~/.config/opencode/opencode.json`
 
 ```json
 {
   "$schema": "https://opencode.ai/config.json",
-  "plugin": ["opencode-scheduled"]
+  "plugins": ["opencode-scheduled"]
 }
 ```
 
-`~/.config/opencode/tui.json`
-
-```json
-{
-  "$schema": "https://opencode.ai/tui.json",
-  "plugin": ["opencode-scheduled"]
-}
-```
-
-For local development, point both plugin lists at this checkout path.
+For local development, point the plugin list at this checkout with a `file://` URL.
 
 ## Use It
 

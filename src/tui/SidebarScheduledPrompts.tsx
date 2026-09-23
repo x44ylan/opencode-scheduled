@@ -1,6 +1,6 @@
 /** @jsxImportSource @opentui/solid */
 import { TextAttributes, type MouseEvent } from "@opentui/core";
-import type { TuiPluginApi } from "@opencode-ai/plugin/tui";
+import type { Context as TuiPluginApi } from "@opencode/plugin/tui/context";
 import { createSignal, For, onCleanup, Show } from "solid-js";
 import { formatCompactDate, taskID } from "../format.ts";
 import { onSchedulerChange } from "../scheduler-events.ts";
@@ -10,7 +10,7 @@ import { SIDEBAR_MAX_JOBS, sortPending, TICK_MS } from "../scheduler.ts";
 import { clickPrimary } from "./ui.ts";
 
 export function SidebarScheduledPrompts(props: { api: TuiPluginApi; sessionID: string; onOpenManager: () => void }) {
-  const theme = props.api.theme.current;
+  const theme = props.api.theme;
   const [jobs, setJobs] = createSignal<ScheduledPrompt[]>([]);
   const [paused, setPaused] = createSignal(false);
   const [expanded, setExpanded] = createSignal(true);
@@ -52,17 +52,17 @@ export function SidebarScheduledPrompts(props: { api: TuiPluginApi; sessionID: s
           }
         }}
       >
-        <text fg={theme.text}>{expanded() ? "▼" : "▶"}</text>
-        <text fg={theme.text} attributes={TextAttributes.BOLD}>
+        <text fg={theme.text.base}>{expanded() ? "▼" : "▶"}</text>
+        <text fg={theme.text.base} attributes={TextAttributes.BOLD}>
           Scheduled
         </text>
         <Show when={paused()}>
-          <text fg={theme.warning}>paused</text>
+          <text fg={theme.text.feedback.warning.base}>paused</text>
         </Show>
       </box>
 
       <Show when={expanded()}>
-        <Show when={jobs().length > 0} fallback={<text fg={theme.textMuted}>  none</text>}>
+        <Show when={jobs().length > 0} fallback={<text fg={theme.text.muted}>  none</text>}>
           <scrollbox maxHeight={SIDEBAR_MAX_JOBS}>
             <box flexDirection="column" gap={0}>
               <For each={jobs()}>
@@ -76,8 +76,8 @@ export function SidebarScheduledPrompts(props: { api: TuiPluginApi; sessionID: s
                       }
                     }}
                   >
-                    <text fg={theme.primary}>{`  ${taskID(job)}`}</text>
-                    <text fg={theme.textMuted}>{formatCompactDate(job.runAt)}</text>
+                    <text fg={theme.text.action.primary.base}>{`  ${taskID(job)}`}</text>
+                    <text fg={theme.text.muted}>{formatCompactDate(job.runAt)}</text>
                   </box>
                 )}
               </For>
