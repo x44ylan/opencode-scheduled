@@ -1,56 +1,58 @@
 # OpenCode Scheduled
 
-Schedule prompts from inside OpenCode with `/schedule`.
-
-Agents can also schedule one non-recurring follow-up in their current session when the user explicitly requests it.
-
-> [!IMPORTANT]
-> Version 1.x supports OpenCode v2 only. OpenCode v1 is no longer supported; use the final 0.x release if you must remain on v1.
+Schedule one-time prompts in OpenCode with `/schedule` and see upcoming prompts in the sidebar.
 
 ## Install
 
-Recommended:
-
-```bash
-opencode plugin -g opencode-scheduled
+```sh
+opencode plugin add opencode-scheduled
 ```
 
-Manual install:
+## Usage
 
-For a global manual install, add the plugin to `~/.config/opencode/opencode.json`.
+Run `/schedule` or select **Schedule Prompt** in the command palette.
+Include a time and prompt to schedule directly:
 
-`~/.config/opencode/opencode.json`
+```text
+/schedule in 30m Check the build results
+/schedule at 3:30am Summarize the overnight logs
+/schedule today 14:00 Review the deployment
+/schedule tomorrow 9am Check open issues
+```
+
+Use `/schedule <prompt>` to enter the time separately. Times use your local time
+zone. Recurring schedules are not supported.
+
+## Controls
+
+- `a`: add a prompt.
+- Up / Down: select a pending prompt.
+- `Enter`, `Ctrl+D`, or click: open cancellation confirmation.
+- `p`: pause or resume all schedules in the shared store.
+- `Esc`: close the manager.
+
+The manager lists pending prompts across sessions. The sidebar shows the next
+six prompts for the current session.
+
+## Agent follow-ups
+
+Ask an agent to schedule a follow-up with `schedule_followup`:
 
 ```json
 {
-  "$schema": "https://opencode.ai/config.json",
-  "plugins": ["opencode-scheduled"]
+  "delay_minutes": 30,
+  "prompt": "Check the build results and summarize any failures."
 }
 ```
 
-For local development, point the plugin list at this checkout with a `file://` URL.
+Delays range from one minute to seven days, with one pending agent-created
+follow-up per session.
 
-## Use It
+## Delivery notes
 
-Open the scheduler with either:
-
-- `/schedule`
-- `/schedule <prompt>`
-- `/schedule in 30m <prompt>`
-- `/schedule at 3:30am <prompt>`
-- `/schedule today 14:00 <prompt>`
-- `/schedule tomorrow 9am <prompt>`
-- Command palette -> `Schedule Prompt`
-
-Inside the dialog, choose when the prompt should be sent, review pending items, and cancel schedules. Pending items are shown by task ID and date.
-
-The sidebar also shows pending prompts for the current session by task ID and date. Use the scheduler dialog to pause or resume delivery. When paused, due prompts stay pending until the scheduler is resumed.
-
-The `schedule_followup` tool is available to agents. It accepts a delay of 1 minute to 7 days and always targets the calling session. Only one agent-created follow-up may be pending per session, and each follow-up is delivered once.
-
-## Notes
-
-- Schedules are stored locally in the platform state directory. Set `OPENCODE_SCHEDULED_HOME` to override the storage directory.
-- Delivery targets the OpenCode session that was active when the prompt was scheduled.
-- Delivery requires OpenCode to be running. If OpenCode is closed at the scheduled time, the prompt will not send until OpenCode is opened again and the plugin timer runs.
-- Failed deliveries are marked as failed rather than retried automatically.
+- Keep an OpenCode terminal running for delivery. Pending prompts survive restarts;
+  overdue prompts are attempted when the terminal reopens.
+- Prompts return to their original session and queue without interrupting a response.
+- Use one scheduler terminal per store to avoid duplicate delivery.
+- Failed prompts are not retried automatically.
+- Schedules store prompt text locally. Avoid including secrets.
